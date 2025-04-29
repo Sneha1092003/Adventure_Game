@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "driver/gpio.h" // For gpio_num_t
+#include <stdio.h>
 
 typedef struct {
     gpio_num_t rs_pin;
