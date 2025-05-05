@@ -1,10 +1,39 @@
-#include "lcd.h"
-#include "driver/uart.h"
-#include <string.h>
+//https://github.com/Sneha1092003/Adventure_Game.git
+
+// main.c
 #include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/touch_pad.h"
+#include "esp_log.h"
+#include "lcd.h"
 
-#define BUF_SIZE 1024
+#define TOUCH_THRESHOLD 500  // Adjust based on testing
+#define TOUCH_LEFT TOUCH_PAD_NUM4  // GPIO13
+#define TOUCH_RIGHT TOUCH_PAD_NUM5 // GPIO12
 
+static const char* TAG = "ADVENTURE_GAME";
+
+void touch_init() {
+    touch_pad_init();
+    touch_pad_config(TOUCH_LEFT, 0);
+    touch_pad_config(TOUCH_RIGHT, 0);
+    touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
+    touch_pad_sw_start();
+}
+
+int read_touch_input() {
+    uint16_t touch_value_left, touch_value_right;
+    touch_pad_read(TOUCH_LEFT, &touch_value_left);
+    touch_pad_read(TOUCH_RIGHT, &touch_value_right);
+    touch_pad_filter_start(10); // Optional: apply filtering to remove noise
+    ESP_LOGI(TAG, "Touch values - Left: %d, Right: %d", touch_value_left, touch_value_right);
+
+    if (touch_value_left < TOUCH_THRESHOLD) return 0;  // Left touched
+    if (touch_value_right < TOUCH_THRESHOLD) return 1; // Right touched
+    vTaskDelay(pdMS_TO_TICKS(500));
+    return -1; // No touch detected
+}
 void app_main(void)
 {
     lcd_config_t config = {
@@ -13,49 +42,32 @@ void app_main(void)
         .data_pins = {GPIO_NUM_16, GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_19},
         .is_4bit_mode = 1
     };
-
+    touch_init();
     lcd_init(&config);
     lcd_clear();
-
-    // UART config
-    const uart_port_t uart_num = UART_NUM_0;
-    uart_config_t uart_config = {
-        .baud_rate = 115200,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
-    };
-    uart_driver_install(uart_num, BUF_SIZE * 2, 0, 0, NULL, 0);
-    uart_param_config(uart_num, &uart_config);
-    uart_set_pin(uart_num, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-
-    char data[BUF_SIZE];
-    lcd_display("You woke up...");
+    lcd_display("You woke up!");
     vTaskDelay(pdMS_TO_TICKS(2000));
+
     lcd_clear();
-    lcd_display("Go L or R?");
-    printf("\nType L or R: ");
+    lcd_display("Choose L or R");
+    vTaskDelay(pdMS_TO_TICKS(2000));
 
     while (1) {
-        int len = uart_read_bytes(uart_num, (uint8_t*)data, 1, pdMS_TO_TICKS(5000));
-        if (len > 0) {
-            if (data[0] == 'L' || data[0] == 'l') {
-                lcd_clear();
-                lcd_display("You chose LEFT!");
-                vTaskDelay(pdMS_TO_TICKS(2000)); // wait for scroll
-
-                lcd_clear();
-    lcd_scroll("You find a hidden treasure inside a cave!", 300); // scroll text slowly
+        int decision = read_touch_input();
+        if (decision == 0) {
+            lcd_clear();
+            lcd_display("You chose LEFT!");
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            lcd_clear();
+            lcd_scroll("You find a hidden treasure inside a cave!", 300); // scroll text slowly
     vTaskDelay(pdMS_TO_TICKS(6000)); // wait for scroll
-
     lcd_clear();
     lcd_display("You win!");
-                break;
-            } else if (data[0] == 'R' || data[0] == 'r') {
-                lcd_clear();
-                lcd_display("You chose RIGHT!");
-                vTaskDelay(pdMS_TO_TICKS(2000)); // wait for scroll
+            break;
+        } else if (decision == 1) {
+            lcd_clear();
+            lcd_display("You chose RIGHT!");
+            vTaskDelay(pdMS_TO_TICKS(2000)); // wait for scroll
 
                 lcd_clear();
     lcd_scroll("Oops!There is a snake!!", 300); // scroll text slowly
@@ -63,14 +75,16 @@ void app_main(void)
 
     lcd_clear();
     lcd_display("You lose!");
-                break;
-            } else {
-                lcd_clear();
-                lcd_display("Invalid input.");
-                vTaskDelay(pdMS_TO_TICKS(2000));
-                lcd_clear();
-                lcd_display("Try again: L/R");
-            }
+    vTaskDelay(pdMS_TO_TICKS(200));
+            break;
         }
+        vTaskDelay(pdMS_TO_TICKS(200));
     }
+
+    lcd_clear();
+    lcd_display("Game Over!");
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    lcd_clear();
+    lcd_display("Thanks for playing!");
 }
+

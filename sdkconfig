@@ -659,8 +659,8 @@ CONFIG_SPI_SLAVE_ISR_IN_IRAM=y
 #
 # ESP-Driver:Touch Sensor Configurations
 #
-# CONFIG_TOUCH_CTRL_FUNC_IN_IRAM is not set
-# CONFIG_TOUCH_ISR_IRAM_SAFE is not set
+CONFIG_TOUCH_CTRL_FUNC_IN_IRAM=y
+CONFIG_TOUCH_ISR_IRAM_SAFE=y
 # CONFIG_TOUCH_ENABLE_DEBUG_LOG is not set
 # end of ESP-Driver:Touch Sensor Configurations
 
